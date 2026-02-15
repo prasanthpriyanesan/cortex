@@ -71,13 +71,17 @@ function App() {
       const countRes = await notificationsAPI.getUnreadCount();
       setUnreadCount(countRes.data.count);
 
-      // Fetch recent notifications for toasts
+      // Fetch recent unread notifications for toasts
       const listRes = await notificationsAPI.getAll({ unread_only: true, limit: 5 });
       const newNotifs = listRes.data as any[];
 
-      // Show toasts for notifications we haven't seen yet
-      // If lastNotifIdRef is -1, it's the very first load after login, we don't toast old ones
-      if (lastNotifIdRef.current !== -1) {
+      if (lastNotifIdRef.current === -1) {
+        // First poll after login — seed the ref, don't toast old notifications
+        lastNotifIdRef.current = newNotifs.length > 0
+          ? Math.max(...newNotifs.map((n: any) => n.id))
+          : 0;
+      } else {
+        // Subsequent polls — show toasts for brand-new notifications
         const brandNew = newNotifs.filter((n: any) => n.id > lastNotifIdRef.current);
         if (brandNew.length > 0) {
           setToasts((prev) => [
@@ -91,11 +95,13 @@ function App() {
               created_at: n.created_at,
             })),
             ...prev,
-          ].slice(0, 5)); // max 5 toasts at once
+          ].slice(0, 5));
+
+          lastNotifIdRef.current = Math.max(...brandNew.map((n: any) => n.id));
         }
       }
 
-      // Track highest ID we've seen
+      // Always keep ref up to date
       if (newNotifs.length > 0) {
         const maxId = Math.max(...newNotifs.map((n: any) => n.id));
         if (maxId > lastNotifIdRef.current) {

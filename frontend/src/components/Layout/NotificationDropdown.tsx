@@ -141,10 +141,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.96 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-                        className="absolute right-0 top-full mt-2 w-[380px] max-h-[480px] rounded-2xl glass border border-white/[0.08] shadow-2xl shadow-black/40 overflow-hidden z-[60]"
+                        className="absolute right-0 top-full mt-2 w-[380px] max-h-[480px] rounded-2xl bg-[#1a2236] border border-white/[0.1] shadow-2xl shadow-black/60 overflow-hidden z-[60]"
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06]">
+                        <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.08] bg-[#151d2e]">
                             <div className="flex items-center gap-2">
                                 <h3 className="text-sm font-semibold text-white">Notifications</h3>
                                 {unreadCount > 0 && (
@@ -184,11 +184,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                         key={n.id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className={`flex items-start gap-3 px-5 py-3.5 border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors cursor-default ${!n.is_read ? 'bg-primary/[0.04]' : ''
+                                        className={`flex items-start gap-3 px-5 py-3.5 border-b border-white/[0.06] hover:bg-white/[0.05] transition-colors cursor-default ${!n.is_read ? 'bg-primary/[0.08]' : ''
                                             }`}
                                     >
                                         {/* Icon */}
-                                        <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-white/[0.06] flex items-center justify-center">
+                                        <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-lg bg-white/[0.1] flex items-center justify-center">
                                             {ALERT_ICONS[n.alert_type || ''] || ALERT_ICONS.price_above}
                                         </div>
 

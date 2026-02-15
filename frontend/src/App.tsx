@@ -18,6 +18,7 @@ type View = 'dashboard' | 'search' | 'alerts' | 'sectors' | 'analytics';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true); // true until initial auth check completes
   const [username, setUsername] = useState('');
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -47,11 +48,16 @@ function App() {
           setIsLoggedIn(true);
           setUsername(res.data.username);
           loadAlerts();
-          pollNotifications();   // start polling on mount
+          pollNotifications();
         })
         .catch(() => {
           localStorage.removeItem('access_token');
+        })
+        .finally(() => {
+          setAuthLoading(false);
         });
+    } else {
+      setAuthLoading(false);
     }
   }, []);
 
@@ -166,6 +172,15 @@ function App() {
     },
     [symbol]
   );
+
+  // Still checking auth — show blank screen to avoid login flash
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   // Not logged in => Auth page
   if (!isLoggedIn) {

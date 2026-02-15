@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-slate-700/50;
+  }
+
+  body {
+    background-color: #0f172a;
+    @apply text-white font-sans antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-600 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+}
+
+@layer components {
+  .glass {
+    background-color: rgba(30, 41, 59, 0.6);
+    @apply backdrop-blur-xl border border-white/[0.08] shadow-xl shadow-black/20;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-300;
+  }
+  .glass-hover:hover {
+    background-color: rgba(30, 41, 59, 0.8);
+    @apply border-white/[0.12];
+  }
+
+  .btn-primary {
+    background: linear-gradient(to right, #6366f1, #8b5cf6);
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.25);
+    @apply px-5 py-2.5 text-white font-medium rounded-xl active:scale-[0.98] transition-all duration-200;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(to right, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
+  }
+
+  .btn-secondary {
+    background-color: rgba(30, 41, 59, 0.6);
+    @apply px-5 py-2.5 rounded-xl text-slate-300 font-medium backdrop-blur-xl border border-white/[0.08]
+           active:scale-[0.98] transition-all duration-200;
+  }
+  .btn-secondary:hover {
+    @apply text-white border-white/20;
+  }
+
+  .btn-danger {
+    background: linear-gradient(to right, #ef4444, #f43f5e);
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.25);
+    @apply px-5 py-2.5 text-white font-medium rounded-xl active:scale-[0.98] transition-all duration-200;
+  }
+  .btn-danger:hover {
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.9), rgba(244, 63, 94, 0.9));
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-slate-800/50 border border-white/[0.08] rounded-xl
+           text-white placeholder-slate-400 outline-none transition-all duration-200;
+  }
+  .input-field:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  }
+
+  .card {
+    background-color: rgba(30, 41, 59, 0.6);
+    @apply backdrop-blur-xl border border-white/[0.08] shadow-xl shadow-black/20 rounded-2xl p-6 relative;
+  }
+
+  .badge {
+    @apply px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-active {
+    @apply px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+  }
+
+  .badge-triggered {
+    @apply px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30;
+  }
+
+  .badge-disabled {
+    @apply px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-500/20 text-slate-400 border border-slate-500/30;
+  }
+
+  .stock-up {
+    @apply text-emerald-400;
+  }
+
+  .stock-down {
+    @apply text-rose-400;
+  }
+
+  .gradient-text {
+    background: linear-gradient(to right, #6366f1, #a78bfa, #d946ef);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}

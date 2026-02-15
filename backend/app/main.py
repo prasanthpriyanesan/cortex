@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, stocks, alerts, websocket, sectors
-from app.models import sector  # ensure Sector tables are created
+from app.api import auth, stocks, alerts, websocket, sectors, notifications
+from app.models import sector, notification  # ensure tables are created
 
 
 @asynccontextmanager
@@ -47,6 +47,7 @@ app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(stocks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX)
 app.include_router(sectors.router, prefix=settings.API_V1_PREFIX)
+app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
 app.include_router(websocket.router)
 
 

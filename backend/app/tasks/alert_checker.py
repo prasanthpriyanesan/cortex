@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.services.alert_engine import alert_engine
 from app.core.config import settings
+from app import models  # Ensure all models are loaded for SQLAlchemy relationships
 
 
 async def check_alerts_task():

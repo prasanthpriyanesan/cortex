@@ -29,6 +29,7 @@ class User(Base):
     alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
     watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     sectors = relationship("Sector", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User {self.username}>"

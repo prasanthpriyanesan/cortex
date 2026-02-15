@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
-import { stocksAPI, alertsAPI, authAPI } from './services/api';
+import { stocksAPI, alertsAPI, authAPI, notificationsAPI } from './services/api';
 import { AuthPage } from './components/Auth/AuthPage';
 import { Navbar } from './components/Layout/Navbar';
 import { Sidebar } from './components/Layout/Sidebar';
@@ -12,6 +12,7 @@ import { CreateAlertModal } from './components/Dashboard/CreateAlertModal';
 import { StatsOverview } from './components/Dashboard/StatsOverview';
 import { SectorsPage } from './components/Dashboard/SectorsPage';
 import { SectorWidget } from './components/Dashboard/SectorWidget';
+import { ToastContainer, Toast } from './components/Toast/ToastContainer';
 
 type View = 'dashboard' | 'search' | 'alerts' | 'sectors' | 'analytics';
 
@@ -30,6 +31,12 @@ function App() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [showCreateAlert, setShowCreateAlert] = useState(false);
 
+  // Notifications
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const lastNotifIdRef = useRef<number>(-1); // Initialize to -1 to differentiate from 0
+  const notifPollRef = useRef<NodeJS.Timeout>();
+
   // Check login on mount
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -40,11 +47,68 @@ function App() {
           setIsLoggedIn(true);
           setUsername(res.data.username);
           loadAlerts();
+          pollNotifications();   // start polling on mount
         })
         .catch(() => {
           localStorage.removeItem('access_token');
         });
     }
+  }, []);
+
+  // Set up notification polling when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      notifPollRef.current = setInterval(pollNotifications, 15000); // 15s
+      return () => {
+        if (notifPollRef.current) clearInterval(notifPollRef.current);
+      };
+    }
+  }, [isLoggedIn]);
+
+  const pollNotifications = async () => {
+    try {
+      // Fetch unread count
+      const countRes = await notificationsAPI.getUnreadCount();
+      setUnreadCount(countRes.data.count);
+
+      // Fetch recent notifications for toasts
+      const listRes = await notificationsAPI.getAll({ unread_only: true, limit: 5 });
+      const newNotifs = listRes.data as any[];
+
+      // Show toasts for notifications we haven't seen yet
+      // If lastNotifIdRef is -1, it's the very first load after login, we don't toast old ones
+      if (lastNotifIdRef.current !== -1) {
+        const brandNew = newNotifs.filter((n: any) => n.id > lastNotifIdRef.current);
+        if (brandNew.length > 0) {
+          setToasts((prev) => [
+            ...brandNew.map((n: any) => ({
+              id: n.id,
+              title: n.title,
+              symbol: n.symbol,
+              trigger_price: n.trigger_price,
+              alert_type: n.alert_type,
+              threshold_value: n.threshold_value,
+              created_at: n.created_at,
+            })),
+            ...prev,
+          ].slice(0, 5)); // max 5 toasts at once
+        }
+      }
+
+      // Track highest ID we've seen
+      if (newNotifs.length > 0) {
+        const maxId = Math.max(...newNotifs.map((n: any) => n.id));
+        if (maxId > lastNotifIdRef.current) {
+          lastNotifIdRef.current = maxId;
+        }
+      }
+    } catch (err) {
+      // silently fail — notifications are non-critical
+    }
+  };
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const loadAlerts = useCallback(async () => {
@@ -61,8 +125,9 @@ function App() {
     try {
       const res = await authAPI.getCurrentUser();
       setUsername(res.data.username);
-    } catch {}
+    } catch { }
     loadAlerts();
+    pollNotifications();
   };
 
   const handleLogout = () => {
@@ -72,6 +137,10 @@ function App() {
     setAlerts([]);
     setQuote(null);
     setSymbol('');
+    setUnreadCount(0);
+    setToasts([]);
+    lastNotifIdRef.current = -1;
+    if (notifPollRef.current) clearInterval(notifPollRef.current);
   };
 
   const fetchQuote = useCallback(
@@ -268,6 +337,8 @@ function App() {
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         alertCount={activeAlertCount}
+        unreadNotifications={unreadCount}
+        onUnreadCountChange={setUnreadCount}
       />
 
       <div className="flex">
@@ -295,6 +366,9 @@ function App() {
         onCreated={loadAlerts}
         defaultSymbol={symbol}
       />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

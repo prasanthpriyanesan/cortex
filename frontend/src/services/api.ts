@@ -81,4 +81,16 @@ export const sectorsAPI = {
     api.delete(`/sectors/${sectorId}/stocks/${symbol}`),
 };
 
+// Notifications API
+export const notificationsAPI = {
+  getAll: (params?: { unread_only?: boolean; limit?: number; offset?: number }) =>
+    api.get('/notifications', { params }),
+
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+
+  markAsRead: (id: number) => api.patch(`/notifications/${id}/read`),
+
+  markAllAsRead: () => api.patch('/notifications/read-all'),
+};
+
 export default api;

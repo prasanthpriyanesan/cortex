@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Bell, LogOut, User, Menu, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, LogOut, User, Menu, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { stocksAPI } from '../../services/api';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface IndexData {
   symbol: string;
@@ -15,6 +16,8 @@ interface NavbarProps {
   onLogout: () => void;
   onToggleSidebar: () => void;
   alertCount: number;
+  unreadNotifications: number;
+  onUnreadCountChange: (count: number) => void;
 }
 
 const INDEX_LABELS: Record<string, string> = {
@@ -28,6 +31,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onToggleSidebar,
   alertCount,
+  unreadNotifications,
+  onUnreadCountChange,
 }) => {
   const [indexes, setIndexes] = useState<IndexData[]>([]);
   const intervalRef = useRef<NodeJS.Timeout>();
@@ -90,9 +95,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ${idx.current_price?.toFixed(2)}
                     </span>
                     <span
-                      className={`flex items-center gap-0.5 text-xs font-semibold ${
-                        isUp ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
+                      className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-emerald-400' : 'text-rose-400'
+                        }`}
                     >
                       {isUp ? (
                         <ArrowUpRight className="w-3 h-3" />
@@ -109,19 +113,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
-            {/* Alert Bell */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative p-2.5 rounded-xl glass glass-hover"
-            >
-              <Bell className="w-5 h-5 text-slate-300" />
-              {alertCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-rose-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold shadow-lg shadow-rose-500/30">
-                  {alertCount > 9 ? '9+' : alertCount}
-                </span>
-              )}
-            </motion.button>
+            {/* Notification Bell + Dropdown */}
+            <NotificationDropdown
+              unreadCount={unreadNotifications}
+              onUnreadCountChange={onUnreadCountChange}
+            />
 
             {/* User Menu */}
             <div className="flex items-center gap-3 pl-3 border-l border-white/[0.08]">

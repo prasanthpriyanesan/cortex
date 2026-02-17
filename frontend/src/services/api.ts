@@ -36,7 +36,7 @@ export const authAPI = {
 export const stocksAPI = {
   getQuote: (symbol: string) => api.get(`/stocks/quote/${symbol}`),
 
-  getProfile: (symbol: string) => api.get(`/stocks/profile/${symbol}`),
+  getDetail: (symbol: string) => api.get(`/stocks/detail/${symbol}`),
 
   search: (query: string) => api.get('/stocks/search', { params: { q: query } }),
 

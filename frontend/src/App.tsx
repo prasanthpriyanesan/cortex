@@ -161,7 +161,7 @@ function App() {
       if (!s) return;
       setQuoteLoading(true);
       try {
-        const response = await stocksAPI.getQuote(s);
+        const response = await stocksAPI.getDetail(s);
         setQuote({ ...response.data, symbol: s });
         setSymbol(s);
       } catch (error) {

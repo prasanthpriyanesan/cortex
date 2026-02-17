@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 
-from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.user import User
 from app.services.stock_api import stock_api
@@ -23,23 +21,57 @@ class StockQuote(BaseModel):
     percent_change: Optional[float] = None
 
 
-class CompanyProfile(BaseModel):
-    name: str
-    symbol: str
-    currency: str
-    exchange: str
-    ipo: Optional[str] = None
-    marketCapitalization: Optional[float] = None
-    shareOutstanding: Optional[float] = None
-    logo: Optional[str] = None
-    phone: Optional[str] = None
-    weburl: Optional[str] = None
-
-
 class StockSearch(BaseModel):
     symbol: str
     description: str
     type: str
+
+
+class BasicFinancials(BaseModel):
+    week_52_high: Optional[float] = None
+    week_52_low: Optional[float] = None
+    beta: Optional[float] = None
+    pe_ratio: Optional[float] = None
+    eps: Optional[float] = None
+    dividend_yield: Optional[float] = None
+    market_cap: Optional[float] = None
+
+
+class RecommendationTrend(BaseModel):
+    strong_buy: int = 0
+    buy: int = 0
+    hold: int = 0
+    sell: int = 0
+    strong_sell: int = 0
+    period: Optional[str] = None
+
+
+class StockDetail(BaseModel):
+    """Combined response for the enriched stock card."""
+    # Quote data
+    symbol: str
+    current_price: float
+    high: float
+    low: float
+    open_price: float
+    previous_close: float
+    timestamp: int
+    percent_change: Optional[float] = None
+
+    # Company profile
+    company_name: Optional[str] = None
+    logo: Optional[str] = None
+    exchange: Optional[str] = None
+    finnhub_industry: Optional[str] = None
+    weburl: Optional[str] = None
+    country: Optional[str] = None
+    ipo: Optional[str] = None
+
+    # Financial metrics
+    financials: Optional[BasicFinancials] = None
+
+    # Analyst recommendations (most recent month)
+    recommendation: Optional[RecommendationTrend] = None
 
 
 @router.get("/quote/{symbol}", response_model=StockQuote)
@@ -73,25 +105,6 @@ async def get_stock_quote(
         timestamp=quote["t"],
         percent_change=percent_change
     )
-
-
-@router.get("/profile/{symbol}", response_model=CompanyProfile)
-async def get_company_profile(
-    symbol: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get company profile information
-    """
-    profile = await stock_api.get_company_profile(symbol)
-    
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Company profile for '{symbol}' not found"
-        )
-    
-    return CompanyProfile(**profile)
 
 
 @router.get("/search", response_model=List[StockSearch])
@@ -147,6 +160,78 @@ async def get_market_indexes(
     return indexes
 
 
+@router.get("/detail/{symbol}", response_model=StockDetail)
+async def get_stock_detail(
+    symbol: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get enriched stock detail: quote + company profile + financial metrics
+    + analyst recommendations. All Finnhub calls execute concurrently.
+    """
+    detail = await stock_api.get_stock_detail(symbol)
+
+    if not detail or not detail.get("quote"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Stock symbol '{symbol}' not found"
+        )
+
+    quote = detail["quote"]
+    profile = detail.get("profile") or {}
+    financials_raw = detail.get("financials") or {}
+    recs_list = detail.get("recommendations")
+
+    # Calculate percent change
+    percent_change = None
+    if quote.get("pc") and quote["pc"] > 0:
+        percent_change = ((quote["c"] - quote["pc"]) / quote["pc"]) * 100
+
+    # Map Finnhub metric keys to clean names
+    financials = BasicFinancials(
+        week_52_high=financials_raw.get("52WeekHigh"),
+        week_52_low=financials_raw.get("52WeekLow"),
+        beta=financials_raw.get("beta"),
+        pe_ratio=financials_raw.get("peBasicExclExtraTTM"),
+        eps=financials_raw.get("epsBasicExclExtraItemsTTM"),
+        dividend_yield=financials_raw.get("dividendYieldIndicatedAnnual"),
+        market_cap=financials_raw.get("marketCapitalization"),
+    ) if financials_raw else None
+
+    # Get the most recent recommendation period
+    recommendation = None
+    if recs_list and len(recs_list) > 0:
+        latest = recs_list[0]
+        recommendation = RecommendationTrend(
+            strong_buy=latest.get("strongBuy", 0),
+            buy=latest.get("buy", 0),
+            hold=latest.get("hold", 0),
+            sell=latest.get("sell", 0),
+            strong_sell=latest.get("strongSell", 0),
+            period=latest.get("period"),
+        )
+
+    return StockDetail(
+        symbol=symbol.upper(),
+        current_price=quote["c"],
+        high=quote["h"],
+        low=quote["l"],
+        open_price=quote["o"],
+        previous_close=quote["pc"],
+        timestamp=quote["t"],
+        percent_change=percent_change,
+        company_name=profile.get("name"),
+        logo=profile.get("logo"),
+        exchange=profile.get("exchange"),
+        finnhub_industry=profile.get("finnhubIndustry"),
+        weburl=profile.get("weburl"),
+        country=profile.get("country"),
+        ipo=profile.get("ipo"),
+        financials=financials,
+        recommendation=recommendation,
+    )
+
+
 @router.get("/historical/{symbol}")
 async def get_historical_data(
     symbol: str,
@@ -157,11 +242,11 @@ async def get_historical_data(
     Get historical price data for a symbol
     """
     data = await stock_api.get_historical_data(symbol, days)
-    
+
     if not data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Historical data for '{symbol}' not found"
         )
-    
+
     return data

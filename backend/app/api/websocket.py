@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 from typing import Set
@@ -6,6 +7,8 @@ import json
 
 from app.core.database import get_db
 from app.services.stock_api import stock_api
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["websocket"])
 
@@ -134,7 +137,7 @@ async def websocket_endpoint(websocket: WebSocket):
         update_task.cancel()
     
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        logger.error("WebSocket error", exc_info=True)
         manager.disconnect(websocket)
         update_task.cancel()
 
@@ -163,5 +166,5 @@ async def send_stock_updates(websocket: WebSocket, symbols: Set[str]):
         except asyncio.CancelledError:
             break
         except Exception as e:
-            print(f"Error sending updates: {e}")
+            logger.error("Error sending websocket updates", exc_info=True)
             await asyncio.sleep(5)

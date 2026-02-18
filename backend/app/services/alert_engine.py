@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict
 from collections import defaultdict
 from sqlalchemy.orm import Session
@@ -6,6 +7,8 @@ from app.models.alert import Alert, AlertStatus
 from app.models.notification import Notification, NotificationChannel
 from app.services.stock_api import stock_api
 from app.services.notification import notification_service
+
+logger = logging.getLogger(__name__)
 
 
 class AlertEngine:
@@ -74,7 +77,7 @@ class AlertEngine:
                 db.commit()
 
             except Exception as e:
-                print(f"Error checking alert {alert.id}: {e}")
+                logger.error(f"Error checking alert {alert.id}", exc_info=True)
                 continue
 
         # Send batched emails per user
@@ -123,10 +126,10 @@ class AlertEngine:
             db.add(notification)
             db.commit()
 
-            print(f"Alert triggered: {alert.symbol} at ${current_price}")
+            logger.info(f"Alert triggered: {alert.symbol} at ${current_price}")
 
         except Exception as e:
-            print(f"Error triggering alert {alert.id}: {e}")
+            logger.error(f"Error triggering alert {alert.id}", exc_info=True)
             db.rollback()
 
     async def _send_batched_email(self, alerts_data: List[Dict], db: Session):
@@ -179,7 +182,7 @@ class AlertEngine:
             )
             if email_sent:
                 break
-            print(f"Email retry {attempt + 1}/3 for user {user.id}")
+            logger.warning(f"Email retry {attempt + 1}/3 for user {user.id}")
 
         # Create email notification records
         now = datetime.utcnow() if email_sent else None

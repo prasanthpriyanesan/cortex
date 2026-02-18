@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "Stock Alert API"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     
     # Database
     DATABASE_URL: str = "postgresql://stockalert:stockalert123@localhost:5432/stockalert"

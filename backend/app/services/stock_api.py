@@ -1,9 +1,12 @@
 import httpx
 import time
 import asyncio
+import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class StockAPIService:
@@ -62,7 +65,7 @@ class StockAPIService:
             return data
 
         except Exception as e:
-            print(f"Error fetching quote for {symbol}: {e}")
+            logger.error(f"Error fetching quote for {symbol}", exc_info=True)
             return None
 
     async def get_company_profile(self, symbol: str) -> Optional[Dict]:
@@ -87,7 +90,7 @@ class StockAPIService:
             return data if data else None
 
         except Exception as e:
-            print(f"Error fetching company profile for {symbol}: {e}")
+            logger.error(f"Error fetching company profile for {symbol}", exc_info=True)
             return None
 
     async def get_basic_financials(self, symbol: str) -> Optional[Dict]:
@@ -120,7 +123,7 @@ class StockAPIService:
             return metrics
 
         except Exception as e:
-            print(f"Error fetching basic financials for {symbol}: {e}")
+            logger.error(f"Error fetching basic financials for {symbol}", exc_info=True)
             return None
 
     async def get_recommendation_trends(self, symbol: str) -> Optional[List[Dict]]:
@@ -143,7 +146,7 @@ class StockAPIService:
             return data if isinstance(data, list) and len(data) > 0 else None
 
         except Exception as e:
-            print(f"Error fetching recommendations for {symbol}: {e}")
+            logger.error(f"Error fetching recommendations for {symbol}", exc_info=True)
             return None
 
     async def search_symbols(self, query: str) -> List[Dict]:
@@ -161,7 +164,7 @@ class StockAPIService:
             return data.get("result", [])
 
         except Exception as e:
-            print(f"Error searching symbols: {e}")
+            logger.error("Error searching symbols", exc_info=True)
             return []
 
     async def get_historical_data(
@@ -193,7 +196,7 @@ class StockAPIService:
             return data
 
         except Exception as e:
-            print(f"Error fetching historical data for {symbol}: {e}")
+            logger.error(f"Error fetching historical data for {symbol}", exc_info=True)
             return None
 
     async def get_multiple_quotes(self, symbols: List[str]) -> Dict[str, Dict]:

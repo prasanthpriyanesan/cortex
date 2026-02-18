@@ -1,9 +1,12 @@
 import aiosmtplib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, List, Dict
 from datetime import datetime
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -122,7 +125,7 @@ class NotificationService:
             True if sent successfully, False otherwise
         """
         if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-            print("Email credentials not configured")
+            logger.warning("Email credentials not configured")
             return False
 
         try:
@@ -150,11 +153,11 @@ class NotificationService:
                 start_tls=True,
             )
 
-            print(f"Email sent to {to_email}")
+            logger.info(f"Email sent to {to_email}")
             return True
 
         except Exception as e:
-            print(f"Error sending email to {to_email}: {e}")
+            logger.error(f"Error sending email to {to_email}", exc_info=True)
             return False
 
     async def send_sms(self, to_phone: str, message: str) -> bool:
@@ -169,15 +172,15 @@ class NotificationService:
             True if sent successfully, False otherwise
         """
         if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
-            print("Twilio credentials not configured")
+            logger.warning("Twilio credentials not configured")
             return False
 
         try:
-            print(f"SMS would be sent to {to_phone}: {message}")
+            logger.debug(f"SMS would be sent to {to_phone}: {message}")
             return True
 
         except Exception as e:
-            print(f"Error sending SMS to {to_phone}: {e}")
+            logger.error(f"Error sending SMS to {to_phone}", exc_info=True)
             return False
 
     async def send_push_notification(
@@ -197,7 +200,7 @@ class NotificationService:
         Returns:
             True if sent successfully, False otherwise
         """
-        print(f"Push notification to user {user_id}: {title}")
+        logger.debug(f"Push notification to user {user_id}: {title}")
         return True
 
 

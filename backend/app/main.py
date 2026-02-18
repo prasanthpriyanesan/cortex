@@ -1,11 +1,16 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import engine, Base
+from app.core.logging_config import setup_logging
 from app.api import auth, stocks, alerts, websocket, sectors, notifications
 from app.models import sector, notification  # ensure tables are created
+
+# Initialize logging
+logger = setup_logging(debug=settings.DEBUG, log_level=settings.LOG_LEVEL)
 
 
 @asynccontextmanager
@@ -14,16 +19,16 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events
     """
     # Startup
-    print("Starting up...")
-    
+    logger.info("Application startup")
+
     # Create database tables
     Base.metadata.create_all(bind=engine)
-    print("Database tables created")
-    
+    logger.info("Database tables created")
+
     yield
-    
+
     # Shutdown
-    print("Shutting down...")
+    logger.info("Application shutdown")
 
 
 # Create FastAPI app

@@ -12,7 +12,5 @@ export default defineConfig({
             usePolling: true,
         },
     },
-    define: {
-        'process.env': {},
-    },
+    envPrefix: 'VITE_',
 });

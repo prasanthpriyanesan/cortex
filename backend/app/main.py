@@ -19,6 +19,8 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events
     """
     # Startup
+    if not settings.SECRET_KEY or settings.SECRET_KEY == "your-secret-key-change-in-production":
+        raise RuntimeError("SECRET_KEY must be set via environment variable")
     logger.info("Application startup")
 
     # Create database tables

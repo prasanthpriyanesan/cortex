@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Enum, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -27,14 +27,14 @@ class Alert(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
+
     # Stock information
-    symbol = Column(String, index=True, nullable=False)  # e.g., "AAPL"
-    stock_name = Column(String, nullable=True)  # e.g., "Apple Inc."
-    
+    symbol = Column(String(5), index=True, nullable=False)  # e.g., "AAPL" - max 5 chars
+    stock_name = Column(String(256), nullable=True)  # e.g., "Apple Inc." - max 256 chars
+
     # Alert configuration
     alert_type = Column(Enum(AlertType), nullable=False)
-    threshold_value = Column(Float, nullable=False)
+    threshold_value = Column(Float, nullable=False, default=0)
     
     # Alert state
     status = Column(Enum(AlertStatus), default=AlertStatus.ACTIVE)
@@ -44,19 +44,25 @@ class Alert(Base):
     notify_email = Column(Boolean, default=True)
     notify_sms = Column(Boolean, default=False)
     notify_push = Column(Boolean, default=False)
-    
+
     # Metadata
-    message = Column(String, nullable=True)  # Custom message for the alert
+    message = Column(String(500), nullable=True)  # Custom message for the alert - max 500 chars
     last_checked_at = Column(DateTime(timezone=True), nullable=True)
     triggered_at = Column(DateTime(timezone=True), nullable=True)
     trigger_price = Column(Float, nullable=True)  # Price when triggered
-    
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", back_populates="alerts")
+
+    # Database constraints
+    __table_args__ = (
+        CheckConstraint("threshold_value > 0", name="ck_alert_threshold_positive"),
+        CheckConstraint("threshold_value <= 999999", name="ck_alert_threshold_max"),
+    )
     
     def __repr__(self):
         return f"<Alert {self.symbol} {self.alert_type} {self.threshold_value}>"

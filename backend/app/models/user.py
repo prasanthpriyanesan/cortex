@@ -10,16 +10,16 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    username = Column(String(50), unique=True, index=True, nullable=False)  # Max 50 chars
+    hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-    
+
     # Notification preferences
     email_notifications = Column(Boolean, default=True)
     sms_notifications = Column(Boolean, default=False)
-    phone_number = Column(String, nullable=True)
+    phone_number = Column(String(20), nullable=True)  # Max 20 chars for phone number
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.core.database import get_db
@@ -15,31 +15,58 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 # Pydantic schemas
 class AlertCreate(BaseModel):
-    symbol: str
-    stock_name: str | None = None
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol: 1-5 uppercase letters and numbers"
+    )
+    stock_name: str | None = Field(
+        None,
+        max_length=256,
+        description="Company name"
+    )
     alert_type: AlertType
-    threshold_value: float
+    threshold_value: float = Field(
+        gt=0,
+        le=999999,
+        description="Alert threshold value (must be positive, max 999,999)"
+    )
     is_repeating: bool = False
     notify_email: bool = True
     notify_sms: bool = False
     notify_push: bool = False
-    message: str | None = None
+    message: str | None = Field(
+        None,
+        max_length=500,
+        description="Custom alert message"
+    )
 
 
 class AlertUpdate(BaseModel):
-    threshold_value: float | None = None
+    threshold_value: float | None = Field(
+        None,
+        gt=0,
+        le=999999,
+        description="Alert threshold value (must be positive, max 999,999)"
+    )
     is_repeating: bool | None = None
     notify_email: bool | None = None
     notify_sms: bool | None = None
     notify_push: bool | None = None
-    message: str | None = None
+    message: str | None = Field(
+        None,
+        max_length=500,
+        description="Custom alert message"
+    )
     status: AlertStatus | None = None
 
 
 class AlertResponse(BaseModel):
     id: int
-    symbol: str
-    stock_name: str | None
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol"
+    )
+    stock_name: str | None = Field(None, max_length=256)
     alert_type: AlertType
     threshold_value: float
     status: AlertStatus
@@ -47,12 +74,12 @@ class AlertResponse(BaseModel):
     notify_email: bool
     notify_sms: bool
     notify_push: bool
-    message: str | None
+    message: str | None = Field(None, max_length=500)
     last_checked_at: datetime | None
     triggered_at: datetime | None
     trigger_price: float | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth import get_current_user
 from app.models.user import User
@@ -11,7 +11,10 @@ router = APIRouter(prefix="/stocks", tags=["stocks"])
 
 # Pydantic schemas
 class StockQuote(BaseModel):
-    symbol: str
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol: 1-5 uppercase letters and numbers"
+    )
     current_price: float
     high: float
     low: float
@@ -22,7 +25,10 @@ class StockQuote(BaseModel):
 
 
 class StockSearch(BaseModel):
-    symbol: str
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol"
+    )
     description: str
     type: str
 
@@ -49,7 +55,10 @@ class RecommendationTrend(BaseModel):
 class StockDetail(BaseModel):
     """Combined response for the enriched stock card."""
     # Quote data
-    symbol: str
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol: 1-5 uppercase letters and numbers"
+    )
     current_price: float
     high: float
     low: float
@@ -76,7 +85,7 @@ class StockDetail(BaseModel):
 
 @router.get("/quote/{symbol}", response_model=StockQuote)
 async def get_stock_quote(
-    symbol: str,
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -109,7 +118,7 @@ async def get_stock_quote(
 
 @router.get("/search", response_model=List[StockSearch])
 async def search_stocks(
-    q: str = Query(..., min_length=1, description="Search query"),
+    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -162,7 +171,7 @@ async def get_market_indexes(
 
 @router.get("/detail/{symbol}", response_model=StockDetail)
 async def get_stock_detail(
-    symbol: str,
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -234,7 +243,7 @@ async def get_stock_detail(
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(
-    symbol: str,
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
     days: int = Query(30, ge=1, le=365, description="Number of days"),
     current_user: User = Depends(get_current_user)
 ):

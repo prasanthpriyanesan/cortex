@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.core.database import get_db
@@ -15,14 +15,23 @@ router = APIRouter(prefix="/sectors", tags=["sectors"])
 # ---------- Pydantic Schemas ----------
 
 class SectorStockCreate(BaseModel):
-    symbol: str
-    stock_name: Optional[str] = None
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$",
+        description="Stock symbol: 1-5 uppercase letters and numbers"
+    )
+    stock_name: Optional[str] = Field(
+        None,
+        max_length=256,
+        description="Company name"
+    )
 
 
 class SectorStockResponse(BaseModel):
     id: int
-    symbol: str
-    stock_name: Optional[str]
+    symbol: str = Field(
+        pattern=r"^[A-Z0-9]{1,5}$"
+    )
+    stock_name: Optional[str] = Field(None, max_length=256)
     created_at: datetime
 
     class Config:
@@ -30,22 +39,50 @@ class SectorStockResponse(BaseModel):
 
 
 class SectorCreate(BaseModel):
-    name: str
-    color: Optional[str] = "#6366f1"
-    icon: Optional[str] = "folder"
+    name: str = Field(
+        min_length=1,
+        max_length=100,
+        description="Sector name"
+    )
+    color: Optional[str] = Field(
+        "#6366f1",
+        pattern=r"^#[0-9A-Fa-f]{6}$",
+        description="Hex color code (#RRGGBB)"
+    )
+    icon: Optional[str] = Field(
+        "folder",
+        pattern=r"^(chart|trending|target|alert|flag|star|bell|folder)$",
+        description="Icon name"
+    )
 
 
 class SectorUpdate(BaseModel):
-    name: Optional[str] = None
-    color: Optional[str] = None
-    icon: Optional[str] = None
+    name: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=100,
+        description="Sector name"
+    )
+    color: Optional[str] = Field(
+        None,
+        pattern=r"^#[0-9A-Fa-f]{6}$",
+        description="Hex color code (#RRGGBB)"
+    )
+    icon: Optional[str] = Field(
+        None,
+        pattern=r"^(chart|trending|target|alert|flag|star|bell|folder)$",
+        description="Icon name"
+    )
 
 
 class SectorResponse(BaseModel):
     id: int
-    name: str
-    color: Optional[str]
-    icon: Optional[str]
+    name: str = Field(min_length=1, max_length=100)
+    color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    icon: Optional[str] = Field(
+        None,
+        pattern=r"^(chart|trending|target|alert|flag|star|bell|folder)$"
+    )
     stocks: List[SectorStockResponse] = []
     created_at: datetime
 

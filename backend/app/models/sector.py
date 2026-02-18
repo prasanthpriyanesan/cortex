@@ -11,9 +11,9 @@ class Sector(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    name = Column(String, nullable=False)
-    color = Column(String, nullable=True, default="#6366f1")  # Hex color for UI
-    icon = Column(String, nullable=True, default="folder")  # Lucide icon name
+    name = Column(String(100), nullable=False)  # Max 100 chars for sector name
+    color = Column(String(7), nullable=True, default="#6366f1")  # Hex color for UI (e.g., #RRGGBB)
+    icon = Column(String(20), nullable=True, default="folder")  # Icon name (max 20 chars)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -39,8 +39,8 @@ class SectorStock(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     sector_id = Column(Integer, ForeignKey("sectors.id", ondelete="CASCADE"), nullable=False)
-    symbol = Column(String, index=True, nullable=False)
-    stock_name = Column(String, nullable=True)
+    symbol = Column(String(5), index=True, nullable=False)  # Max 5 chars for stock symbol
+    stock_name = Column(String(256), nullable=True)  # Max 256 chars for company name
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

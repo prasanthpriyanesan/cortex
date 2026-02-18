@@ -13,7 +13,7 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.models.user import User
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -22,9 +22,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 # Pydantic schemas
 class UserCreate(BaseModel):
-    username: str
+    username: str = Field(
+        min_length=3,
+        max_length=50,
+        pattern=r"^[a-zA-Z0-9_]+$",
+        description="Username: 3-50 chars, alphanumeric and underscore only"
+    )
     email: EmailStr
-    password: str
+    password: str = Field(
+        min_length=8,
+        description="Password must be at least 8 characters"
+    )
 
 
 class UserResponse(BaseModel):
@@ -44,6 +52,17 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
+
+
+class ChangePassword(BaseModel):
+    old_password: str = Field(
+        min_length=8,
+        description="Current password"
+    )
+    new_password: str = Field(
+        min_length=8,
+        description="New password must be at least 8 characters"
+    )
 
 
 # Dependency to get current user from token

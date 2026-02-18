@@ -40,14 +40,17 @@ export const StockSearch: React.FC<StockSearchProps> = ({ onSelectSymbol }) => {
       return;
     }
 
+    // Clear old results immediately while waiting for new search
+    setLoading(true);
+
     debounceRef.current = setTimeout(async () => {
-      setLoading(true);
       try {
         const response = await stocksAPI.search(query);
         setResults(response.data?.result || response.data || []);
         setShowResults(true);
       } catch (err) {
         console.error('Search failed:', err);
+        setResults([]);
       } finally {
         setLoading(false);
       }

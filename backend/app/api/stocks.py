@@ -12,8 +12,8 @@ router = APIRouter(prefix="/stocks", tags=["stocks"])
 # Pydantic schemas
 class StockQuote(BaseModel):
     symbol: str = Field(
-        pattern=r"^[A-Z0-9]{1,5}$",
-        description="Stock symbol: 1-5 uppercase letters and numbers"
+        pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$",
+        description="Stock symbol: 1-5 uppercase letters and numbers, optional exchange suffix (e.g., HOOD, BRK.B, HOOD.TO)"
     )
     current_price: float
     high: float
@@ -26,8 +26,8 @@ class StockQuote(BaseModel):
 
 class StockSearch(BaseModel):
     symbol: str = Field(
-        pattern=r"^[A-Z0-9]{1,5}$",
-        description="Stock symbol"
+        pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$",
+        description="Stock symbol with optional exchange suffix"
     )
     description: str
     type: str
@@ -56,8 +56,8 @@ class StockDetail(BaseModel):
     """Combined response for the enriched stock card."""
     # Quote data
     symbol: str = Field(
-        pattern=r"^[A-Z0-9]{1,5}$",
-        description="Stock symbol: 1-5 uppercase letters and numbers"
+        pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$",
+        description="Stock symbol with optional exchange suffix"
     )
     current_price: float
     high: float
@@ -85,7 +85,7 @@ class StockDetail(BaseModel):
 
 @router.get("/quote/{symbol}", response_model=StockQuote)
 async def get_stock_quote(
-    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$", description="Stock symbol with optional exchange suffix"),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -171,7 +171,7 @@ async def get_market_indexes(
 
 @router.get("/detail/{symbol}", response_model=StockDetail)
 async def get_stock_detail(
-    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$", description="Stock symbol with optional exchange suffix"),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -243,7 +243,7 @@ async def get_stock_detail(
 
 @router.get("/historical/{symbol}")
 async def get_historical_data(
-    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,5}$", description="Stock symbol"),
+    symbol: str = Path(..., pattern=r"^[A-Z0-9]{1,10}(\.[A-Z0-9]{1,5})?$", description="Stock symbol with optional exchange suffix"),
     days: int = Query(30, ge=1, le=365, description="Number of days"),
     current_user: User = Depends(get_current_user)
 ):

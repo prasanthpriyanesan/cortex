@@ -40,6 +40,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Trust proxy headers (Railway terminates SSL at the proxy)
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,

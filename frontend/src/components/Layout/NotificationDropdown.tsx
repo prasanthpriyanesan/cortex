@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Bell,
-    Check,
-    CheckCheck,
     TrendingUp,
     TrendingDown,
     BarChart3,
@@ -71,10 +69,17 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    // Fetch notifications when dropdown opens
+    // Fetch notifications and auto-mark as read when dropdown opens
     useEffect(() => {
         if (isOpen) {
-            fetchNotifications();
+            fetchNotifications().then(() => {
+                if (unreadCount > 0) {
+                    notificationsAPI.markAllAsRead().then(() => {
+                        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+                        onUnreadCountChange(0);
+                    }).catch(() => {});
+                }
+            });
         }
     }, [isOpen]);
 
@@ -87,28 +92,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             console.error('Failed to fetch notifications:', err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleMarkAsRead = async (id: number) => {
-        try {
-            await notificationsAPI.markAsRead(id);
-            setNotifications((prev) =>
-                prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
-            );
-            onUnreadCountChange(Math.max(0, unreadCount - 1));
-        } catch (err) {
-            console.error('Failed to mark as read:', err);
-        }
-    };
-
-    const handleMarkAllRead = async () => {
-        try {
-            await notificationsAPI.markAllAsRead();
-            setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-            onUnreadCountChange(0);
-        } catch (err) {
-            console.error('Failed to mark all as read:', err);
         }
     };
 
@@ -153,15 +136,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                     </span>
                                 )}
                             </div>
-                            {unreadCount > 0 && (
-                                <button
-                                    onClick={handleMarkAllRead}
-                                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-primary transition-colors"
-                                >
-                                    <CheckCheck className="w-3.5 h-3.5" />
-                                    Mark all read
-                                </button>
-                            )}
                         </div>
 
                         {/* List */}
@@ -216,16 +190,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                                             </span>
                                         </div>
 
-                                        {/* Mark as read */}
-                                        {!n.is_read && (
-                                            <button
-                                                onClick={() => handleMarkAsRead(n.id)}
-                                                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-emerald-400 transition-colors"
-                                                title="Mark as read"
-                                            >
-                                                <Check className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
                                     </motion.div>
                                 ))
                             )}

@@ -34,9 +34,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
         onLoginSuccess();
       }
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || (isLogin ? 'Invalid credentials' : 'Registration failed')
-      );
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        // FastAPI 422 validation errors — extract readable messages
+        const messages = detail.map((e: any) => {
+          const field = e.loc?.[e.loc.length - 1] || 'input';
+          return `${field}: ${e.msg}`;
+        });
+        setError(messages.join('. '));
+      } else {
+        setError(isLogin ? 'Invalid credentials' : 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -177,6 +187,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess }) => {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+
+            {/* Validation hints (register only) */}
+            {!isLogin && (
+              <div className="text-xs text-slate-500 space-y-1">
+                <p>• Username: 3-50 characters, letters, numbers, and underscores only</p>
+                <p>• Password: minimum 8 characters</p>
+              </div>
+            )}
 
             {/* Submit */}
             <motion.button

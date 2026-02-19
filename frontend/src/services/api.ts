@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const rawURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-const API_URL = rawURL.replace(/^http:\/\/(?!localhost)/, 'https://');
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 console.log('[Cortex] API URL:', API_URL);
+console.log('[Cortex] Raw env:', import.meta.env.VITE_API_URL);
+console.log('[Cortex] typeof:', typeof API_URL);
 
 // Create axios instance with default config
 const api = axios.create({

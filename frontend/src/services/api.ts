@@ -1,9 +1,6 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-console.log('[Cortex] API URL:', API_URL);
-console.log('[Cortex] Raw env:', import.meta.env.VITE_API_URL);
-console.log('[Cortex] typeof:', typeof API_URL);
 
 // Create axios instance with default config
 const api = axios.create({
@@ -13,20 +10,12 @@ const api = axios.create({
   },
 });
 
-// Add token and enforce HTTPS
+// Add auth token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Force HTTPS for non-localhost URLs
-  if (config.baseURL && config.baseURL.includes('railway.app') && config.baseURL.startsWith('http://')) {
-    config.baseURL = config.baseURL.replace('http://', 'https://');
-  }
-  if (config.url && config.url.includes('railway.app') && config.url.startsWith('http://')) {
-    config.url = config.url.replace('http://', 'https://');
-  }
-  console.log('[Cortex] Request:', config.method, config.baseURL, config.url);
   return config;
 });
 

@@ -84,6 +84,20 @@ class AlertResponse(BaseModel):
         from_attributes = True
 
 
+@router.post("/check")
+async def check_alerts(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Check all active alerts for the current user and trigger any that match.
+    Called by frontend polling.
+    """
+    from app.services.alert_engine import alert_engine
+    triggered_count = await alert_engine.check_alerts(db)
+    return {"triggered": triggered_count}
+
+
 @router.post("/", response_model=AlertResponse, status_code=status.HTTP_201_CREATED)
 def create_alert(
     alert_data: AlertCreate,

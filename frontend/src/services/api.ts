@@ -58,6 +58,8 @@ export const alertsAPI = {
   update: (id: number, data: any) => api.put(`/alerts/${id}`, data),
 
   delete: (id: number) => api.delete(`/alerts/${id}`),
+
+  check: () => api.post('/alerts/check'),
 };
 
 // Sectors API

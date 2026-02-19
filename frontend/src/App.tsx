@@ -73,6 +73,12 @@ function App() {
 
   const pollNotifications = async () => {
     try {
+      // Check alerts against current prices
+      await alertsAPI.check().catch(() => {});
+
+      // Refresh alerts list to pick up any status changes
+      await loadAlerts();
+
       // Fetch unread count
       const countRes = await notificationsAPI.getUnreadCount();
       setUnreadCount(countRes.data.count);

@@ -13,12 +13,20 @@ const api = axios.create({
   },
 });
 
-// Add token to requests if it exists
+// Add token and enforce HTTPS
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Force HTTPS for non-localhost URLs
+  if (config.baseURL && config.baseURL.includes('railway.app') && config.baseURL.startsWith('http://')) {
+    config.baseURL = config.baseURL.replace('http://', 'https://');
+  }
+  if (config.url && config.url.includes('railway.app') && config.url.startsWith('http://')) {
+    config.url = config.url.replace('http://', 'https://');
+  }
+  console.log('[Cortex] Request:', config.method, config.baseURL, config.url);
   return config;
 });
 

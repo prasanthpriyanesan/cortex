@@ -11,8 +11,18 @@ import {
   ArrowDownRight,
   Loader2,
   Check,
+  Settings,
 } from 'lucide-react';
-import { sectorsAPI, stocksAPI } from '../../services/api';
+import { sectorsAPI, stocksAPI, sectorStrategiesAPI } from '../../services/api';
+
+interface SectorStrategy {
+  id: number;
+  sector_id: number;
+  is_active: boolean;
+  percent_majority: number;
+  trend_threshold: number;
+  laggard_threshold: number;
+}
 
 interface SectorStock {
   id: number;
@@ -43,6 +53,7 @@ const SECTOR_COLORS = [
 
 export const SectorsPage: React.FC = () => {
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [strategies, setStrategies] = useState<Record<number, SectorStrategy>>({});
   const [prices, setPrices] = useState<Record<string, StockPrice>>({});
   const [loading, setLoading] = useState(true);
 
@@ -61,10 +72,33 @@ export const SectorsPage: React.FC = () => {
   const [editingSector, setEditingSector] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
 
+  // Strategy modal
+  const [strategySectorId, setStrategySectorId] = useState<number | null>(null);
+  const [strategyForm, setStrategyForm] = useState({
+    is_active: true,
+    percent_majority: 70.0,
+    trend_threshold: 1.5,
+    laggard_threshold: -1.0,
+  });
+  const [savingStrategy, setSavingStrategy] = useState(false);
+
   const loadSectors = useCallback(async () => {
     try {
       const res = await sectorsAPI.getAll();
-      setSectors(res.data);
+      const loadedSectors = res.data;
+      setSectors(loadedSectors);
+
+      // Load strategies for these sectors
+      const stratsMap: Record<number, SectorStrategy> = {};
+      await Promise.all(loadedSectors.map(async (s: Sector) => {
+        try {
+          const stratRes = await sectorStrategiesAPI.getBySectorId(s.id);
+          stratsMap[s.id] = stratRes.data;
+        } catch (e) {
+          // No strategy configured yet
+        }
+      }));
+      setStrategies(stratsMap);
     } catch (err) {
       console.error('Failed to load sectors:', err);
     } finally {
@@ -179,6 +213,26 @@ export const SectorsPage: React.FC = () => {
       loadSectors();
     } catch (err) {
       console.error('Failed to remove stock:', err);
+    }
+  };
+
+  const handleSaveStrategy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (strategySectorId === null) return;
+    setSavingStrategy(true);
+    try {
+      const existing = strategies[strategySectorId];
+      if (existing) {
+        await sectorStrategiesAPI.update(existing.id, strategyForm);
+      } else {
+        await sectorStrategiesAPI.create({ sector_id: strategySectorId, ...strategyForm });
+      }
+      setStrategySectorId(null);
+      loadSectors();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to save strategy');
+    } finally {
+      setSavingStrategy(false);
     }
   };
 
@@ -303,6 +357,23 @@ export const SectorsPage: React.FC = () => {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setStrategySectorId(sector.id);
+                      setStrategyForm({
+                        is_active: strategies[sector.id]?.is_active ?? true,
+                        percent_majority: strategies[sector.id]?.percent_majority ?? 70.0,
+                        trend_threshold: strategies[sector.id]?.trend_threshold ?? 1.5,
+                        laggard_threshold: strategies[sector.id]?.laggard_threshold ?? -1.0,
+                      });
+                    }}
+                    className={`p-2 rounded-lg hover:bg-white/[0.06] transition-colors ${strategies[sector.id]?.is_active ? 'text-emerald-400' : 'text-slate-400'}`}
+                    title="Configure Strategy"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setAddingToSector(sector.id)}
                     className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
                     title="Add stock"
@@ -367,9 +438,8 @@ export const SectorsPage: React.FC = () => {
                                   ${price.current_price?.toFixed(2)}
                                 </span>
                                 <span
-                                  className={`flex items-center text-[10px] font-semibold ${
-                                    isUp ? 'text-emerald-400' : 'text-rose-400'
-                                  }`}
+                                  className={`flex items-center text-[10px] font-semibold ${isUp ? 'text-emerald-400' : 'text-rose-400'
+                                    }`}
                                 >
                                   {isUp ? (
                                     <ArrowUpRight className="w-3 h-3" />
@@ -445,11 +515,10 @@ export const SectorsPage: React.FC = () => {
                         key={c}
                         type="button"
                         onClick={() => setNewColor(c)}
-                        className={`w-8 h-8 rounded-lg transition-all ${
-                          newColor === c
+                        className={`w-8 h-8 rounded-lg transition-all ${newColor === c
                             ? 'ring-2 ring-white ring-offset-2 ring-offset-background scale-110'
                             : 'hover:scale-105'
-                        }`}
+                          }`}
                         style={{ backgroundColor: c }}
                       />
                     ))}
@@ -536,6 +605,118 @@ export const SectorsPage: React.FC = () => {
                       <>
                         <Plus className="w-4 h-4" />
                         Add Stock
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Strategy Modal */}
+      <AnimatePresence>
+        {strategySectorId !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setStrategySectorId(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md glass rounded-2xl border border-white/[0.08] shadow-2xl p-6"
+            >
+              <h3 className="text-lg font-bold mb-1">Sector Divergence Strategy</h3>
+              <p className="text-sm text-slate-400 mb-6">Receive alerts when one stock severely lags behind the overall sector trend.</p>
+              <form onSubmit={handleSaveStrategy} className="space-y-4">
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-800/40 border border-white/[0.08]">
+                  <span className="text-sm font-medium text-slate-200">Enable Strategy</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={strategyForm.is_active}
+                      onChange={(e) => setStrategyForm({ ...strategyForm, is_active: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                {strategyForm.is_active && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-4 pt-2">
+                    <div>
+                      <label className="text-sm font-medium text-slate-300 mb-2 flex justify-between">
+                        <span>Basket Majority (%)</span>
+                        <span className="text-primary">{strategyForm.percent_majority}%</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="50"
+                        max="100"
+                        step="5"
+                        value={strategyForm.percent_majority}
+                        onChange={(e) => setStrategyForm({ ...strategyForm, percent_majority: parseFloat(e.target.value) })}
+                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Percentage of stocks that must be trending.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-slate-300 mb-2 block">
+                          Trend Threshold (%)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={strategyForm.trend_threshold}
+                          onChange={(e) => setStrategyForm({ ...strategyForm, trend_threshold: parseFloat(e.target.value) })}
+                          className="input-field"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-300 mb-2 block">
+                          Laggard Div. (%)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          max="-0.1"
+                          value={strategyForm.laggard_threshold}
+                          onChange={(e) => setStrategyForm({ ...strategyForm, laggard_threshold: parseFloat(e.target.value) })}
+                          className="input-field"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="flex gap-3 pt-6">
+                  <button
+                    type="button"
+                    onClick={() => setStrategySectorId(null)}
+                    className="flex-1 btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingStrategy}
+                    className="flex-1 btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {savingStrategy ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Save Strategy
                       </>
                     )}
                   </button>

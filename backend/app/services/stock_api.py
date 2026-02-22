@@ -4,6 +4,7 @@ import asyncio
 import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
+from aiolimiter import AsyncLimiter
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,9 @@ class StockAPIService:
         self.client = httpx.AsyncClient(timeout=30.0)
         self._profile_cache: Dict[str, Tuple[float, dict]] = {}
         self._financials_cache: Dict[str, Tuple[float, dict]] = {}
+        
+        # Free tier is 60 calls per minute. Set slightly strictly at 58.
+        self.rate_limiter = AsyncLimiter(58, 60.0)
 
     def _get_cached(self, cache: Dict[str, Tuple[float, dict]], key: str) -> Optional[dict]:
         """Return cached value if still fresh, else None."""
@@ -53,7 +57,8 @@ class StockAPIService:
                 "symbol": symbol.upper(),
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -81,7 +86,8 @@ class StockAPIService:
                 "symbol": cache_key,
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -113,7 +119,8 @@ class StockAPIService:
                 "metric": "all",
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -139,7 +146,8 @@ class StockAPIService:
                 "symbol": symbol.upper(),
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -157,7 +165,8 @@ class StockAPIService:
                 "q": query,
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -185,7 +194,8 @@ class StockAPIService:
                 "to": int(end_date.timestamp()),
                 "token": self.api_key
             }
-            response = await self.client.get(url, params=params)
+            async with self.rate_limiter:
+                response = await self.client.get(url, params=params)
             response.raise_for_status()
 
             data = response.json()

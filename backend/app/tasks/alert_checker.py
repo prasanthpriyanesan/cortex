@@ -22,11 +22,15 @@ async def check_alerts_task():
             db = SessionLocal()
             
             try:
-                # Check all alerts
-                triggered_count = await alert_engine.check_alerts(db)
-                
-                if triggered_count > 0:
-                    logger.info(f"Triggered {triggered_count} alerts")
+                # Check standard alarms
+                standard_triggered = await alert_engine.check_alerts(db)
+                if standard_triggered > 0:
+                    logger.info(f"Triggered {standard_triggered} standard alerts")
+                    
+                # Check sector strategies
+                strategy_triggered = await alert_engine.check_sector_strategies(db)
+                if strategy_triggered > 0:
+                    logger.info(f"Triggered {strategy_triggered} sector strategy alerts")
             
             finally:
                 db.close()
@@ -38,6 +42,19 @@ async def check_alerts_task():
             logger.error("Error in alert checker", exc_info=True)
             await asyncio.sleep(settings.ALERT_CHECK_INTERVAL)
 
+async def main_async():
+    """Run all background tasks concurrently."""
+    from app.tasks.market_streamer import market_streamer
+    from app.tasks.daily_maintenance import daily_maintenance
+    
+    logger.info("Starting all background workers...")
+    
+    # Run all three tasks forever
+    await asyncio.gather(
+        check_alerts_task(),
+        market_streamer.connect_and_stream(),
+        daily_maintenance.run_forever()
+    )
 
 def start_alert_checker():
     """
@@ -47,7 +64,10 @@ def start_alert_checker():
     In a separate process or container:
     python -m app.tasks.alert_checker
     """
-    asyncio.run(check_alerts_task())
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        logger.info("Worker shutting down...")
 
 
 if __name__ == "__main__":

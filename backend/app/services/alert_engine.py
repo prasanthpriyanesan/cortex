@@ -5,8 +5,11 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from app.models.alert import Alert, AlertStatus
 from app.models.notification import Notification, NotificationChannel
+from app.models.sector_strategy import SectorStrategy
 from app.services.stock_api import stock_api
+from app.services.market_data_cache import market_data_cache
 from app.services.notification import notification_service
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,121 @@ class AlertEngine:
     Alert engine for checking stock prices and triggering alerts.
     Creates Notification records and sends batched emails per user.
     """
+
+    async def check_sector_strategies(self, db: Session) -> int:
+        """
+        Check all active Sector Strategies for relative strength divergences.
+        Returns the number of divergence alerts triggered.
+        """
+        active_strategies = db.query(SectorStrategy).filter(SectorStrategy.is_active == True).all()
+        if not active_strategies:
+            return 0
+            
+        triggered_count = 0
+        triggered_by_user: Dict[int, List[Dict]] = defaultdict(list)
+        
+        # We need all symbols involved to fetch quotes efficiently
+        all_symbols = set()
+        for strategy in active_strategies:
+            for stock in strategy.sector.stocks:
+                all_symbols.add(stock.symbol)
+                
+        if not all_symbols:
+            return 0
+            
+        # 1. Fetch live prices from Redis cache
+        symbols_list = list(all_symbols)
+        live_prices = await market_data_cache.get_all_live_prices(symbols_list)
+        
+        # 2. Build quotes dictionary
+        quotes = {}
+        for symbol in symbols_list:
+            c = live_prices.get(symbol)
+            pc = await market_data_cache.get_previous_close(symbol)
+            
+            # If cache miss, fallback to HTTP
+            if c is None or pc is None:
+                logger.debug(f"Cache miss for {symbol}, triggering HTTP fallback.")
+                quote = await stock_api.get_quote(symbol)
+                if quote:
+                    quotes[symbol] = {"c": quote.get("c"), "pc": quote.get("pc")}
+                    # Rate limit fallback
+                    await asyncio.sleep(1.1)
+            else:
+                quotes[symbol] = {"c": c, "pc": pc}
+        
+        for strategy in active_strategies:
+            try:
+                stocks = strategy.sector.stocks
+                total_stocks = len(stocks)
+                if total_stocks < 2:
+                    continue  # Needs at least 2 stocks for "relative" strength
+                    
+                basket_moves = []
+                for stock in stocks:
+                    quote = quotes.get(stock.symbol)
+                    if quote and quote.get("c") and quote.get("pc"):
+                        c, pc = quote["c"], quote["pc"]
+                        pct_change = ((c - pc) / pc) * 100
+                        basket_moves.append({"symbol": stock.symbol, "name": stock.stock_name, "change": pct_change, "price": c})
+                        
+                if len(basket_moves) != total_stocks:
+                    continue  # Missing data for some stocks, skip evaluation to be safe
+                
+                # Check Upward trend
+                up_trenders = [s for s in basket_moves if s["change"] >= strategy.trend_threshold]
+                up_percent = (len(up_trenders) / total_stocks) * 100
+                
+                # Check Downward trend
+                down_trenders = [s for s in basket_moves if s["change"] <= -strategy.trend_threshold]
+                down_percent = (len(down_trenders) / total_stocks) * 100
+                
+                laggard_symbol = None
+                direction = None
+                
+                if up_percent >= strategy.percent_majority:
+                    # Sector is trending UP. Look for a stock that is severely DOWN.
+                    laggards = [s for s in basket_moves if s["change"] <= strategy.laggard_threshold]
+                    if len(laggards) == 1:
+                        laggard_symbol = laggards[0]
+                        direction = "UP"
+                elif down_percent >= strategy.percent_majority:
+                    # Sector is trending DOWN. Look for a stock that is severely UP.
+                    # Note: laggard_threshold is typically negative (e.g. -1.0%). For upward divergence, we check for >= +1.0%.
+                    divergence_positive = abs(strategy.laggard_threshold)
+                    laggards = [s for s in basket_moves if s["change"] >= divergence_positive]
+                    if len(laggards) == 1:
+                        laggard_symbol = laggards[0]
+                        direction = "DOWN"
+                        
+                if laggard_symbol:
+                    # Check if we already triggered recently to avoid spamming.
+                    # We'll trigger an in-app notification for the laggard.
+                    title = f"Sector Divergence Play: {laggard_symbol['symbol']} is diverging from {strategy.sector.name}"
+                    message = f"{strategy.sector.name} is trending {'UP' if direction == 'UP' else 'DOWN'}. {laggard_symbol['symbol']} is lagging heavily at {laggard_symbol['change']:.2f}%."
+                    
+                    notification = Notification(
+                        user_id=strategy.user_id,
+                        channel=NotificationChannel.IN_APP,
+                        title=title,
+                        message=message,
+                        symbol=laggard_symbol['symbol'],
+                        trigger_price=laggard_symbol['price'],
+                        alert_type="sector_divergence",
+                        threshold_value=laggard_symbol['change']
+                    )
+                    db.add(notification)
+                    
+                    strategy.last_triggered_at = datetime.utcnow()
+                    db.commit()
+                    triggered_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Error checking SectorStrategy {strategy.id}", exc_info=True)
+                db.rollback()
+                continue
+                
+        return triggered_count
 
     async def check_alerts(self, db: Session) -> int:
         """
@@ -34,9 +152,27 @@ class AlertEngine:
 
         # Group alerts by symbol for efficient API calls
         symbols_to_check = set(alert.symbol for alert in active_alerts)
+        symbols_list = list(symbols_to_check)
 
-        # Fetch current prices for all symbols
-        quotes = await stock_api.get_multiple_quotes(list(symbols_to_check))
+        # 1. Fetch live prices from Redis cache
+        live_prices = await market_data_cache.get_all_live_prices(symbols_list)
+
+        # 2. Build quotes dictionary
+        quotes = {}
+        for symbol in symbols_list:
+            c = live_prices.get(symbol)
+            pc = await market_data_cache.get_previous_close(symbol)
+            
+            # If cache miss, fallback to HTTP
+            if c is None or pc is None:
+                logger.debug(f"Cache miss for standard alert {symbol}, triggering HTTP fallback.")
+                quote = await stock_api.get_quote(symbol)
+                if quote:
+                    quotes[symbol] = {"c": quote.get("c"), "pc": quote.get("pc")}
+                    # Rate limit fallback
+                    await asyncio.sleep(1.1)
+            else:
+                quotes[symbol] = {"c": c, "pc": pc}
 
         triggered_count = 0
         # Collect triggered alerts per user for email batching

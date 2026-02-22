@@ -146,26 +146,41 @@ async def get_market_indexes(
     Get real-time quotes for major market indexes (SPY, QQQ, IWM).
     Returns all three in a single batched call.
     """
+    from app.services.market_data_cache import market_data_cache
     import asyncio
 
     symbols = ["SPY", "QQQ", "IWM"]
-    tasks = [stock_api.get_quote(s) for s in symbols]
-    results = await asyncio.gather(*tasks)
+    live_prices = await market_data_cache.get_all_live_prices(symbols)
 
     indexes = []
-    for sym, quote in zip(symbols, results):
-        if quote and quote.get("c", 0) > 0:
+    for sym in symbols:
+        c = live_prices.get(sym)
+        pc = await market_data_cache.get_previous_close(sym)
+
+        # Fallback to HTTP if cache miss (e.g. server just restarted)
+        h, l = None, None
+        if c is None or pc is None:
+            quote = await stock_api.get_quote(sym)
+            if quote:
+                c = quote.get("c")
+                pc = quote.get("pc")
+                h = quote.get("h")
+                l = quote.get("l")
+
+        if c is not None and c > 0:
             percent_change = None
-            if quote.get("pc") and quote["pc"] > 0:
-                percent_change = ((quote["c"] - quote["pc"]) / quote["pc"]) * 100
+            if pc is not None and pc > 0:
+                percent_change = ((c - pc) / pc) * 100
+            
             indexes.append({
                 "symbol": sym,
-                "current_price": quote["c"],
-                "previous_close": quote["pc"],
+                "current_price": c,
+                "previous_close": pc,
                 "percent_change": percent_change,
-                "high": quote["h"],
-                "low": quote["l"],
+                "high": h or c, # Fallback visualization defaults
+                "low": l or c,
             })
+            
     return indexes
 
 

@@ -95,4 +95,17 @@ export const notificationsAPI = {
   markAllAsRead: () => api.patch('/notifications/read-all'),
 };
 
+// Sector Strategies API
+export const sectorStrategiesAPI = {
+  getBySectorId: (sectorId: number) => api.get(`/sector-strategies/sector/${sectorId}`),
+
+  create: (data: { sector_id: number; is_active?: boolean; percent_majority?: number; trend_threshold?: number; laggard_threshold?: number }) =>
+    api.post('/sector-strategies', data),
+
+  update: (id: number, data: { is_active?: boolean; percent_majority?: number; trend_threshold?: number; laggard_threshold?: number }) =>
+    api.put(`/sector-strategies/${id}`, data),
+
+  delete: (id: number) => api.delete(`/sector-strategies/${id}`),
+};
+
 export default api;

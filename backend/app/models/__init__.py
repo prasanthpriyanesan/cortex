@@ -3,6 +3,7 @@ from app.models.alert import Alert, AlertType, AlertStatus
 from app.models.watchlist import Watchlist
 from app.models.notification import Notification, NotificationChannel
 from app.models.sector import Sector, SectorStock
+from app.models.sector_strategy import SectorStrategy
 
 __all__ = [
     "User", 
@@ -13,5 +14,6 @@ __all__ = [
     "Notification", 
     "NotificationChannel",
     "Sector",
-    "SectorStock"
+    "SectorStock",
+    "SectorStrategy"
 ]

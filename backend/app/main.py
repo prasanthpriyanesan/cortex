@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.core.logging_config import setup_logging
-from app.api import auth, stocks, alerts, websocket, sectors, notifications
-from app.models import sector, notification  # ensure tables are created
+from app.api import auth, stocks, alerts, websocket, sectors, notifications, sector_strategies
+from app.models import sector, notification, sector_strategy  # ensure tables are created
 
 # Initialize logging
 logger = setup_logging(debug=settings.DEBUG, log_level=settings.LOG_LEVEL)
@@ -59,6 +59,7 @@ app.include_router(stocks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(alerts.router, prefix=settings.API_V1_PREFIX)
 app.include_router(sectors.router, prefix=settings.API_V1_PREFIX)
 app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
+app.include_router(sector_strategies.router, prefix=settings.API_V1_PREFIX)
 app.include_router(websocket.router)
 
 

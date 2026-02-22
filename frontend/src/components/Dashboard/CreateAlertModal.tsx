@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -6,11 +6,13 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Percent,
-  BarChart2,
   Repeat,
   DollarSign,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
-import { alertsAPI } from '../../services/api';
+import { alertsAPI, stocksAPI } from '../../services/api';
 
 interface CreateAlertModalProps {
   isOpen: boolean;
@@ -22,9 +24,32 @@ interface CreateAlertModalProps {
 const alertTypes = [
   { id: 'price_above', label: 'Price Above', icon: ArrowUpRight, desc: 'Alert when price rises above threshold' },
   { id: 'price_below', label: 'Price Below', icon: ArrowDownRight, desc: 'Alert when price drops below threshold' },
-  { id: 'percent_change', label: '% Change', icon: Percent, desc: 'Alert on percentage change' },
-  { id: 'volume_spike', label: 'Volume Spike', icon: BarChart2, desc: 'Alert on unusual volume' },
+  { id: 'percent_change', label: 'Change', icon: Percent, desc: 'Alert on percentage change' },
 ];
+
+const thresholdConfig: Record<string, { label: string; icon: React.ReactNode; placeholder: string; step: string; hint: string }> = {
+  price_above: {
+    label: 'Target Price',
+    icon: <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />,
+    placeholder: '150.00',
+    step: '0.01',
+    hint: 'Alert when price rises above this value',
+  },
+  price_below: {
+    label: 'Target Price',
+    icon: <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />,
+    placeholder: '120.00',
+    step: '0.01',
+    hint: 'Alert when price drops below this value',
+  },
+  percent_change: {
+    label: 'Percentage (%)',
+    icon: <Percent className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />,
+    placeholder: '5.0',
+    step: '0.1',
+    hint: 'Alert when price changes by this percentage',
+  },
+};
 
 export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
   isOpen,
@@ -39,14 +64,54 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Live price preview
+  const [quoteData, setQuoteData] = useState<any>(null);
+  const [quoteFetching, setQuoteFetching] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout>();
+
   // Update symbol when defaultSymbol changes
   React.useEffect(() => {
     if (defaultSymbol) setSymbol(defaultSymbol);
   }, [defaultSymbol]);
 
+  // Debounced price fetch when symbol changes
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setQuoteData(null);
+
+    const trimmed = symbol.trim();
+    if (trimmed.length < 1) return;
+
+    debounceRef.current = setTimeout(async () => {
+      setQuoteFetching(true);
+      try {
+        const res = await stocksAPI.getQuote(trimmed);
+        setQuoteData(res.data);
+      } catch {
+        setQuoteData(null);
+      } finally {
+        setQuoteFetching(false);
+      }
+    }, 500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [symbol]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!symbol || !threshold) return;
+
+    const value = parseFloat(threshold);
+    if (isNaN(value) || value <= 0) {
+      setError('Threshold must be a positive number');
+      return;
+    }
+    if (value > 999999) {
+      setError('Threshold cannot exceed 999,999');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -55,7 +120,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
       await alertsAPI.create({
         symbol: symbol.toUpperCase(),
         alert_type: alertType,
-        threshold_value: parseFloat(threshold),
+        threshold_value: value,
         is_repeating: isRepeating,
       });
       onCreated();
@@ -64,7 +129,18 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
       setThreshold('');
       setIsRepeating(false);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create alert');
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        const messages = detail.map((e: any) => {
+          const field = e.loc?.[e.loc.length - 1] || 'input';
+          return `${field}: ${e.msg}`;
+        });
+        setError(messages.join('. '));
+      } else {
+        setError('Failed to create alert');
+      }
     } finally {
       setLoading(false);
     }
@@ -137,6 +213,32 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
                   className="input-field"
                   required
                 />
+
+                {/* Live Price Preview */}
+                {quoteFetching && (
+                  <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Fetching price...</span>
+                  </div>
+                )}
+                {quoteData && !quoteFetching && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800/50 border border-white/[0.06]"
+                  >
+                    <span className="text-xs font-bold text-white">{quoteData.symbol}</span>
+                    <span className="text-sm font-semibold text-white">
+                      ${quoteData.current_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {quoteData.percent_change != null && (
+                      <span className={`flex items-center gap-0.5 text-xs font-medium ${quoteData.percent_change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {quoteData.percent_change >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {quoteData.percent_change >= 0 ? '+' : ''}{quoteData.percent_change?.toFixed(2)}%
+                      </span>
+                    )}
+                  </motion.div>
+                )}
               </div>
 
               {/* Alert Type */}
@@ -166,21 +268,24 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
 
               {/* Threshold */}
               <div>
-                <label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Threshold Value
+                <label className="text-sm font-medium text-slate-300 mb-1.5 block">
+                  {thresholdConfig[alertType]?.label || 'Threshold Value'}
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  {thresholdConfig[alertType]?.icon}
                   <input
                     type="number"
-                    step="0.01"
+                    step={thresholdConfig[alertType]?.step || '0.01'}
                     value={threshold}
                     onChange={(e) => setThreshold(e.target.value)}
-                    placeholder="0.00"
+                    placeholder={thresholdConfig[alertType]?.placeholder || '0.00'}
                     className="input-field pl-11"
                     required
                   />
                 </div>
+                <p className="text-xs text-slate-500 mt-1.5">
+                  {thresholdConfig[alertType]?.hint}
+                </p>
               </div>
 
               {/* Repeating Toggle */}

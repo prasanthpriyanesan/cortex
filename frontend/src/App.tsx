@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { stocksAPI, alertsAPI, authAPI, notificationsAPI } from './services/api';
 import { AuthPage } from './components/Auth/AuthPage';
 import { Navbar } from './components/Layout/Navbar';
@@ -31,6 +31,8 @@ function App() {
   // Alerts
   const [alerts, setAlerts] = useState<any[]>([]);
   const [showCreateAlert, setShowCreateAlert] = useState(false);
+  const [activeAlertsExpanded, setActiveAlertsExpanded] = useState(true);
+  const [pastAlertsExpanded, setPastAlertsExpanded] = useState(false);
 
   // Notifications
   const [unreadCount, setUnreadCount] = useState(0);
@@ -334,24 +336,83 @@ function App() {
             {/* Sectors Widget */}
             <SectorWidget onViewAllSectors={() => setCurrentView('sectors')} />
 
-            {/* Recent Alerts */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">Recent Alerts</h3>
-                {alerts.length > 3 && (
-                  <button
-                    onClick={() => setCurrentView('alerts')}
-                    className="text-sm text-primary hover:text-primary/80 transition-colors"
-                  >
-                    View all
-                  </button>
-                )}
+            {/* Active Alerts — expanded by default */}
+            {alerts.filter((a) => a.status === 'active' || a.status === 'disabled').length > 0 && (
+              <div>
+                <button
+                  onClick={() => setActiveAlertsExpanded(!activeAlertsExpanded)}
+                  className="flex items-center gap-2 group w-full"
+                >
+                  {activeAlertsExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                  )}
+                  <h3 className="text-lg font-semibold group-hover:text-white transition-colors">
+                    Active Alerts
+                  </h3>
+                  <span className="text-xs text-slate-500 ml-1">
+                    ({alerts.filter((a) => a.status === 'active' || a.status === 'disabled').length})
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {activeAlertsExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <AlertList
+                        alerts={alerts.filter((a) => a.status === 'active' || a.status === 'disabled').slice(0, 5)}
+                        onRefresh={loadAlerts}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <AlertList
-                alerts={alerts.slice(0, 5)}
-                onRefresh={loadAlerts}
-              />
-            </div>
+            )}
+
+            {/* Past Alerts — collapsed by default */}
+            {alerts.filter((a) => a.status === 'triggered').length > 0 && (
+              <div>
+                <button
+                  onClick={() => setPastAlertsExpanded(!pastAlertsExpanded)}
+                  className="flex items-center gap-2 group w-full"
+                >
+                  {pastAlertsExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+                  )}
+                  <h3 className="text-lg font-semibold group-hover:text-white transition-colors">
+                    Past Alerts
+                  </h3>
+                  <span className="text-xs text-slate-500 ml-1">
+                    ({alerts.filter((a) => a.status === 'triggered').length})
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {pastAlertsExpanded && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <AlertList
+                        alerts={alerts.filter((a) => a.status === 'triggered').slice(0, 5)}
+                        onRefresh={loadAlerts}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </motion.div>
         );
     }
